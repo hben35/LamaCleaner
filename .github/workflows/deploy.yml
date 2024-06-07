@@ -29,14 +29,6 @@ jobs:
       - name: Clone repository
         run: git clone https://github.com/hben35/LamaCleaner.git
 
-      - name: Move files
-        run: |
-          mv LamaCleaner/* .
-          rm -rf LamaCleaner
-
-      - name: Remove db.sqlite3
-        run: rm -f db.sqlite3
-
       - name: Build Docker image
         run: docker build -t your-docker-username/lama-cleaner:latest .
 
