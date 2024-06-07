@@ -1,55 +1,37 @@
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
-
 import cv2
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler
 
-# Create your views here.
-
 @api_view(['POST',])
 def lamaCleaner(request):
     if request.method == "POST":
-        # Vérifier si les fichiers sont présents dans la demande
-        if 'input_image' in request.FILES and 'input_mask' in request.FILES:
-            input_image_file = request.FILES['input_image']
-            mask_image_file = request.FILES['input_mask']
+        input_image = request.FILES['input_image']
+        mask_image = request.FILES['mask_image']
+        userid = request.POST['userid']
 
-            # Autres données de la requête
-            userid = request.POST.get('userid', '')
+        imagename = f"inpaint_{userid}.png"
+        model = ModelManager(name="lama", device="cpu")
+        img = cv2.imread(input_image)  # Utilisez input_image comme chemin vers le fichier
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+        mask = cv2.imread(mask_image, cv2.IMREAD_GRAYSCALE)  # Utilisez mask_image comme chemin vers le fichier
 
-            imagename = f"inpaint_{userid}.png"
-            model = ModelManager(name="lama", device="cpu")
-            img = cv2.imdecode(input_image_file.read(), cv2.IMREAD_COLOR)
-            mask = cv2.imdecode(mask_image_file.read(), cv2.IMREAD_GRAYSCALE)
+        res = model(img, mask, get_config(HDStrategy.RESIZE))  # Vous pouvez utiliser trois types de stratégies (CROP, RESIZE, ORIGINAL)
+        save_dir = "chemin/vers/votre/repertoire/de/sauvegarde"  # Assurez-vous que ce chemin existe
+        cv2.imwrite(
+            f"{save_dir}/{imagename}",
+            res,
+            [int(cv2.IMWRITE_JPEG_QUALITY), 100, int(cv2.IMWRITE_PNG_COMPRESSION), 0],
+        )
 
-            res = model(img, mask, get_config(HDStrategy.RESIZE))  # vous pouvez utiliser trois types de stratégies (CROP, RESIZE, ORIGINAL)
-            cv2.imwrite(
-                str(save_dir / imagename),
-                res,
-                [int(cv2.IMWRITE_JPEG_QUALITY), 100, int(cv2.IMWRITE_PNG_COMPRESSION), 0],
-            )
-
-            response = {
-                'status': 200,
-                'message': "success",
-                'User': imagename
-            }
-            return JsonResponse(response, safe=False)
-        else:
-            # Si les fichiers sont manquants, retourner une réponse d'erreur
-            response = {
-                'status': 400,
-                'error': 'Les fichiers input_image et input_mask sont requis.'
-            }
-            return JsonResponse(response, status=400)
-    else:
-        # Gérer les autres méthodes HTTP si nécessaire
         response = {
-            'status': 405,
-            'error': 'Méthode non autorisée.'
+            'status': 200,
+            'message': "success",
+            'User': imagename
         }
-        return JsonResponse(response, status=405)
+
+        return JsonResponse(response, safe=False)
 
 def get_config(strategy, **kwargs):
     data = dict(
