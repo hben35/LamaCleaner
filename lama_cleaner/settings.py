@@ -25,10 +25,8 @@ SECRET_KEY = 'django-insecure-=x2n@zasb2nkq$)frp(&h*tsozyka+jb5(&3^7@u5@ven@-sdu
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'https://app.cap.dev.processflow.fr',
-    # Ajoutez d'autres URL si nécessaire
-]
+ALLOWED_HOSTS = ['app.cap.dev.processflow.fr']
+
 
 
 # Application definition
