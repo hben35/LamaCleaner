@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 import cv2
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler
+import os
 
 @api_view(['POST',])
 def lamaCleaner(request):
@@ -18,7 +19,8 @@ def lamaCleaner(request):
         mask = cv2.imread(mask_image, cv2.IMREAD_GRAYSCALE)  # Utilisez mask_image comme chemin vers le fichier
 
         res = model(img, mask, get_config(HDStrategy.RESIZE))  # Vous pouvez utiliser trois types de stratégies (CROP, RESIZE, ORIGINAL)
-        save_dir = "chemin/vers/votre/repertoire/de/sauvegarde"  # Assurez-vous que ce chemin existe
+        save_dir = "/app/lama-data"  # Utilisez le répertoire persistant créé avec CapRover
+        os.makedirs(save_dir, exist_ok=True)  # Assurez-vous que le répertoire existe
         cv2.imwrite(
             f"{save_dir}/{imagename}",
             res,
