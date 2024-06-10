@@ -46,7 +46,7 @@ def lamaCleaner(request):
             response = {
                 'status': 200,
                 'message': "success",
-                'image_base64': image_base64
+                'image_base64': "data:image/png;base64," + image_base64
             }
 
             return JsonResponse(response, safe=False)
