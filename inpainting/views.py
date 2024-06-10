@@ -14,29 +14,38 @@ current_dir = Path(__file__).parent.absolute().resolve()
 save_dir = current_dir / 'inpaintingresult'
 save_dir.mkdir(exist_ok=True, parents=True)
 
-@api_view(['POST',])
+@api_view(['POST'])
 def lamaCleaner(request):
     if request.method == "POST":
         try:
-            # Affichez le contenu de request.POST pour le débogage
+            # Affichez le contenu de request.FILES et request.POST pour le débogage
+            print("request.FILES content:", request.FILES)
             print("request.POST content:", request.POST)
 
-            # Vérifiez que les clés sont dans request.POST
-            if 'input_image' not in request.POST or 'mask_image' not in request.POST or 'userid' not in request.POST:
+            # Vérifiez que les clés sont dans request.FILES et request.POST
+            if 'input_image' not in request.FILES or 'mask_image' not in request.FILES or 'userid' not in request.POST:
                 return JsonResponse({'status': 400, 'message': 'Missing required POST data'}, safe=False)
 
-            input_image = request.POST['input_image']
-            mask_image = request.POST['mask_image']
+            input_image = request.FILES['input_image']
+            mask_image = request.FILES['mask_image']
             userid = request.POST['userid']
 
             imagename = f"inpaint_{userid}.png"
             model = ModelManager(name="lama", device="cpu")
 
-            # Vérifiez si les chemins d'images sont corrects
-            print(f"Input image path: {input_image}")
-            print(f"Mask image path: {mask_image}")
+            # Enregistrez les fichiers temporairement pour les lire avec OpenCV
+            input_image_path = current_dir / 'temp_input_image.jpg'
+            mask_image_path = current_dir / 'temp_mask_image.jpg'
 
-            img = cv2.imread(str(input_image))
+            with open(input_image_path, 'wb+') as temp_file:
+                for chunk in input_image.chunks():
+                    temp_file.write(chunk)
+
+            with open(mask_image_path, 'wb+') as temp_file:
+                for chunk in mask_image.chunks():
+                    temp_file.write(chunk)
+
+            img = cv2.imread(str(input_image_path))
             if img is None:
                 print("Failed to read input image")
                 return JsonResponse({'status': 400, 'message': 'Failed to read input image'}, safe=False)
@@ -44,7 +53,7 @@ def lamaCleaner(request):
                 print("Input image read successfully")
 
             img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
-            mask = cv2.imread(str(mask_image), cv2.IMREAD_GRAYSCALE)
+            mask = cv2.imread(str(mask_image_path), cv2.IMREAD_GRAYSCALE)
             if mask is None:
                 print("Failed to read mask image")
                 return JsonResponse({'status': 400, 'message': 'Failed to read mask image'}, safe=False)
