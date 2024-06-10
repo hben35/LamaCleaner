@@ -5,7 +5,6 @@ from rest_framework.decorators import api_view
 import datetime
 from pathlib import Path
 import cv2
-import pytest
 import torch
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
@@ -18,11 +17,9 @@ save_dir.mkdir(exist_ok=True, parents=True)
 def lamaCleaner(request):
     if request.method == "POST":
         try:
-            # Affichez le contenu de request.FILES et request.POST pour le débogage
             print("request.FILES content:", request.FILES)
             print("request.POST content:", request.POST)
 
-            # Vérifiez que les clés sont dans request.FILES et request.POST
             if 'input_image' not in request.FILES or 'mask_image' not in request.FILES or 'userid' not in request.POST:
                 return JsonResponse({'status': 400, 'message': 'Missing required POST data'}, safe=False)
 
@@ -33,7 +30,6 @@ def lamaCleaner(request):
             imagename = f"inpaint_{userid}.png"
             model = ModelManager(name="lama", device="cpu")
 
-            # Enregistrez les fichiers temporairement pour les lire avec OpenCV
             input_image_path = current_dir / 'temp_input_image.jpg'
             mask_image_path = current_dir / 'temp_mask_image.jpg'
 
@@ -45,22 +41,22 @@ def lamaCleaner(request):
                 for chunk in mask_image.chunks():
                     temp_file.write(chunk)
 
+            print("Input image and mask image files saved.")
+
             img = cv2.imread(str(input_image_path))
             if img is None:
                 print("Failed to read input image")
                 return JsonResponse({'status': 400, 'message': 'Failed to read input image'}, safe=False)
-            else:
-                print("Input image read successfully")
 
             img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
             mask = cv2.imread(str(mask_image_path), cv2.IMREAD_GRAYSCALE)
             if mask is None:
                 print("Failed to read mask image")
                 return JsonResponse({'status': 400, 'message': 'Failed to read mask image'}, safe=False)
-            else:
-                print("Mask image read successfully")
 
-            res = model(img, mask, get_config(HDStrategy.RESIZE))  # you can use three types of strategy (CROP, RESIZE, ORIGINAL)
+            print("Input image and mask image read successfully.")
+
+            res = model(img, mask, get_config(HDStrategy.RESIZE))
 
             cv2.imwrite(
                 str(save_dir / imagename),
@@ -76,6 +72,7 @@ def lamaCleaner(request):
             return JsonResponse(response, safe=False)
 
         except Exception as e:
+            print("Exception occurred:", str(e))
             response = {
                 'status': 500,
                 'message': str(e)
