@@ -1,8 +1,4 @@
-schema_version: 2
-name: LamaCleaner
-app_memory: 256M
-app_cpu: 1024
-random_url: false
-deploy_method: git
-initial_instance_count: 1
-run_cmd: python manage.py runserver 0.0.0.0:8000
+{
+  "schemaVersion": 2,
+  "dockerfilePath": "./Dockerfile"
+}
