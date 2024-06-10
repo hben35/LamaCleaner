@@ -1,13 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from rest_framework.response import Response
 from rest_framework.decorators import api_view
-import datetime
 from pathlib import Path
 import cv2
-import torch
 from lama_cleaner.model_manager import ModelManager
-from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
+from lama_cleaner.schema import Config, HDStrategy, LDMSampler
 
 current_dir = Path(__file__).parent.absolute().resolve()
 save_dir = current_dir / 'inpaintingresult'
@@ -17,10 +14,12 @@ save_dir.mkdir(exist_ok=True, parents=True)
 def lamaCleaner(request):
     if request.method == "POST":
         try:
+            # Vérifier le contenu de request.FILES et request.POST
             print("request.FILES content:", request.FILES)
             print("request.POST content:", request.POST)
 
             if 'input_image' not in request.FILES or 'mask_image' not in request.FILES or 'userid' not in request.POST:
+                print("Missing required POST data")
                 return JsonResponse({'status': 400, 'message': 'Missing required POST data'}, safe=False)
 
             input_image = request.FILES['input_image']
@@ -30,6 +29,7 @@ def lamaCleaner(request):
             imagename = f"inpaint_{userid}.png"
             model = ModelManager(name="lama", device="cpu")
 
+            # Enregistrer les fichiers téléchargés dans un emplacement temporaire
             input_image_path = current_dir / 'temp_input_image.jpg'
             mask_image_path = current_dir / 'temp_mask_image.jpg'
 
@@ -43,6 +43,7 @@ def lamaCleaner(request):
 
             print("Input image and mask image files saved.")
 
+            # Lire les images enregistrées
             img = cv2.imread(str(input_image_path))
             if img is None:
                 print("Failed to read input image")
@@ -56,8 +57,10 @@ def lamaCleaner(request):
 
             print("Input image and mask image read successfully.")
 
+            # Effectuer l'inpainting
             res = model(img, mask, get_config(HDStrategy.RESIZE))
 
+            # Sauvegarder l'image résultante
             cv2.imwrite(
                 str(save_dir / imagename),
                 res,
