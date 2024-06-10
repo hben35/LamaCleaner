@@ -3,6 +3,8 @@ name: Build & Deploy
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build-and-deploy:
@@ -10,37 +12,32 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: 3.10
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1-mesa-glx
           python -m venv venv
           source venv/bin/activate
           pip install --upgrade pip
           pip install django==4.1.2 djangorestframework==3.14.0 opencv-python-headless==4.6.0.66 pytest==7.1.3 torch==1.12.1 pydantic==1.10.2 loguru==0.6.0 tqdm==4.64.1 Pillow==9.2.0 diffusers==0.4.2 transformers==4.23.1 scikit-image==0.19.3
 
-      - name: Clone repository
-        run: git clone https://github.com/hben35/LamaCleaner.git
+      - name: Clone LamaCleaner
+        run: git clone https://github.com/hben35/LamaCleaner.git .
 
-      - name: Build Docker image
-        run: docker build -t your-docker-username/lama-cleaner:latest .
+      - name: Prepare deployment package
+        run: |
+          rm -rf LamaCleaner
+          tar -czvf deploy.tar --exclude='./venv' .
 
-      - name: Log in to Docker Hub
-        run: docker login -u your-docker-username -p ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Push Docker image to Docker Hub
-        run: docker push your-docker-username/lama-cleaner:latest
-
-      - name: Deploy to CapRover
+      - name: Deploy App to CapRover
         uses: caprover/deploy-from-github@v1.0.1
         with:
           server: ${{ secrets.CAPROVER_SERVER }}
           app: ${{ secrets.APP_NAME }}
           token: ${{ secrets.APP_TOKEN }}
+          tarFile: deploy.tar
