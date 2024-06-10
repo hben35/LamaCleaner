@@ -18,33 +18,35 @@ from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 def lamaCleaner(request):
     if request.method == "POST":
         try:
-            input_image_base64 = request.POST.get('input_image_base64')
-            mask_image_base64 = request.POST.get('mask_image_base64')
+            input_image_url = request.POST.get('input_image')
+            mask_image_url = request.POST.get('mask_image')
             userid = request.POST.get('userid')
 
-            if not input_image_base64 or not mask_image_base64 or not userid:
+            if not input_image_url or not mask_image_url or not userid:
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
             model = ModelManager(name="lama", device="cpu")
 
-            # Decode base64-encoded images
-            input_image = decode_base64_to_cv2(input_image_base64)
-            mask_image = decode_base64_to_cv2(mask_image_base64, gray=True)
+            # Télécharger et lire les images depuis les URL fournies
+            img = url_to_image(input_image_url)
+            if img is None:
+                return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
 
-            if input_image is None or mask_image is None:
-                return JsonResponse({'status': 400, 'message': 'Failed to decode input images'}, safe=False)
+            mask = url_to_image(mask_image_url, gray=True)
+            if mask is None:
+                return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
-            # Perform inpainting
-            result_image = model(input_image, mask_image, get_config(HDStrategy.RESIZE))
+            # Effectuer l'inpainting
+            res = model(img, mask, get_config(HDStrategy.RESIZE))
 
-            # Convert result image to base64
-            _, buffer = cv2.imencode('.png', result_image)
-            result_image_base64 = base64.b64encode(buffer).decode('utf-8')
+            # Convertir l'image résultante en base64
+            _, buffer = cv2.imencode('.png', res)
+            image_base64 = base64.b64encode(buffer).decode('utf-8')
 
             response = {
                 'status': 200,
                 'message': "success",
-                'image_base64': "data:image/png;base64," + result_image_base64
+                'image_base64': "data:image/png;base64," + image_base64
             }
 
             return JsonResponse(response, safe=False)
@@ -57,19 +59,20 @@ def lamaCleaner(request):
             return JsonResponse(response, safe=False)
 
 
-def decode_base64_to_cv2(base64_string, gray=False):
+def url_to_image(url, gray=False):
     """
-    Decode base64-encoded image to OpenCV format.
+    Télécharge une image depuis une URL et la convertit en un format OpenCV.
     """
     try:
-        decoded_data = base64.b64decode(base64_string)
-        image_array = np.frombuffer(decoded_data, dtype=np.uint8)
+        response = requests.get(url)
+        response.raise_for_status()
+        image_array = np.asarray(bytearray(response.content), dtype="uint8")
         image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
         if image is not None and not gray:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image
     except Exception as e:
-        print(f"Error decoding base64 image: {e}")
+        print(f"Error downloading image from {url}: {e}")
         return None
 
 
