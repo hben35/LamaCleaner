@@ -6,16 +6,12 @@ from pathlib import Path
 import cv2
 import requests
 import numpy as np
-import torch
+import base64
+from io import BytesIO
+from PIL import Image
 
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
-
-# Create your views here.
-
-current_dir = Path(__file__).parent.absolute().resolve()
-save_dir = current_dir / 'inpaintingresult'
-save_dir.mkdir(exist_ok=True, parents=True)
 
 
 @api_view(['POST'])
@@ -29,7 +25,6 @@ def lamaCleaner(request):
             if not input_image_url or not mask_image_url or not userid:
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
-            imagename = f"inpaint_{userid}.png"
             model = ModelManager(name="lama", device="cpu")
 
             # Télécharger et lire les images depuis les URL fournies
@@ -44,17 +39,14 @@ def lamaCleaner(request):
             # Effectuer l'inpainting
             res = model(img, mask, get_config(HDStrategy.RESIZE))
 
-            # Sauvegarder l'image résultante
-            cv2.imwrite(
-                str(save_dir / imagename),
-                res,
-                [int(cv2.IMWRITE_JPEG_QUALITY), 100, int(cv2.IMWRITE_PNG_COMPRESSION), 0],
-            )
+            # Convertir l'image résultante en base64
+            _, buffer = cv2.imencode('.png', res)
+            image_base64 = base64.b64encode(buffer).decode('utf-8')
 
             response = {
                 'status': 200,
                 'message': "success",
-                'User': imagename
+                'image_base64': image_base64
             }
 
             return JsonResponse(response, safe=False)
