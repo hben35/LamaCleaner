@@ -28,11 +28,11 @@ def lamaCleaner(request):
             model = ModelManager(name="lama", device="cpu")
 
             # Télécharger et lire les images depuis les URL fournies
-            img = url_to_image(input_image_url)
+            img = input_image_url
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
 
-            mask = url_to_image(mask_image_url, gray=True)
+            mask = mask_image_url
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
