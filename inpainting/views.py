@@ -32,7 +32,7 @@ def lamaCleaner(request):
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
 
-            mask = url_to_image(mask_image_url)
+            mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
@@ -59,7 +59,7 @@ def lamaCleaner(request):
             return JsonResponse(response, safe=False)
 
 
-def url_to_image(url):
+def url_to_image(url, gray=False):
     """
     Télécharge une image depuis une URL et la convertit en un format OpenCV.
     """
@@ -67,8 +67,9 @@ def url_to_image(url):
         response = requests.get(url)
         response.raise_for_status()
         image_array = np.asarray(bytearray(response.content), dtype="uint8")
-        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
+        if image is not None and not gray:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
