@@ -27,9 +27,10 @@ save_dir.mkdir(exist_ok=True, parents=True)
 @api_view(['POST',])
 def lamaCleaner(request):
     if request.method == "POST":
-        input_image = request.POST['input_image']
-        mask_image = request.POST['mask_image']
-        userid=request.POST['userid']
+        
+        input_image = request.POST.get('input_image')
+        mask_image = request.POST.get('mask_image')
+        userid = request.POST.get('userid')
 
         imagename=f"inpaint_{userid}.png"
         model = ModelManager(name="lama", device="cpu")
