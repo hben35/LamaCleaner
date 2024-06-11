@@ -63,15 +63,17 @@ def lamaCleaner(request):
                 # Enregistrer l'image temporairement
                 filename = f"temp_image_{userid}.jpg"
                 filepath = default_storage.save(filename, ContentFile(image_data))
-
+                
                 # Renvoyer l'URL de l'image
                 image_url = default_storage.url(filepath)
-
+                full_image_url = request.build_absolute_uri(image_url) 
+                
                 response = {
                     'status': 200,
                     'message': "success",
-                    'image_url': image_url
+                    'image_url': full_image_url  # Use the full URL
                 }
+                
             except MemoryError:
                 response = {
                     'status': 500,
