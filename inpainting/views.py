@@ -32,6 +32,9 @@ def lamaCleaner(request):
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or decode mask image'}, safe=False)
 
+            # Assurer que l'image et le masque ont les mêmes dimensions
+            img, mask = resize_to_same_dimension(img, mask)
+
             res = model(img, mask, get_config(HDStrategy.RESIZE))
 
             # Convertir l'image résultante en base64
@@ -54,18 +57,30 @@ def lamaCleaner(request):
 
 def url_to_image(url, gray=False):
     """
-    Télécharge une image depuis une URL et la convertit en une image PIL.
+    Télécharge une image depuis une URL et la convertit en un format OpenCV.
     """
     try:
         response = requests.get(url)
         response.raise_for_status()
-        image = Image.open(BytesIO(response.content))
-        if gray:
-            image = image.convert('L')
+        image_array = np.asarray(bytearray(response.content), dtype="uint8")
+        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
+        if image is not None and not gray:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image
     except Exception as e:
-        print(f"Error downloading or decoding image from {url}: {e}")
+        print(f"Error downloading image from {url}: {e}")
         return None
+
+def resize_to_same_dimension(img, mask):
+    """
+    Redimensionne l'image et le masque pour avoir les mêmes dimensions.
+    """
+    min_height = min(img.shape[0], mask.shape[0])
+    min_width = min(img.shape[1], mask.shape[1])
+    img = cv2.resize(img, (min_width, min_height))
+    mask = cv2.resize(mask, (min_width, min_height))
+    return img, mask
+
 
 def image_to_base64(image):
     """
