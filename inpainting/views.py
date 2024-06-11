@@ -49,12 +49,13 @@ def url_to_image(url):
     try:
         response = requests.get(url)
         response.raise_for_status()
-        image_array = np.asarray(bytearray(response.content), dtype=np.uint8)
+        image_array = np.asarray(bytearray(response.content), dtype="uint8")
         image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
         return image
     except Exception as e:
         print(f"Error downloading or decoding image from {url}: {e}")
         return None
+
 
 def get_config(strategy, **kwargs):
     data = dict(
