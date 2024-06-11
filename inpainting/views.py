@@ -10,7 +10,6 @@ import base64
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler
 
-
 @api_view(['POST'])
 def lamaCleaner(request):
     if request.method == "POST":
@@ -24,7 +23,6 @@ def lamaCleaner(request):
 
             model = ModelManager(name="lama", device="cpu", dtype="float32")
             
-
             img = url_to_image(input_image_url)
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
@@ -32,21 +30,12 @@ def lamaCleaner(request):
             mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
-            
+
             print(f"Original image size: {img.shape}")
             print(f"Mask image size: {mask.shape}")
-            
-            # Redimensionnement manuel avant traitement
-            original_size = img.shape[:2]
-            target_size = (512, 512)  # Taille à adapter en fonction de vos tests
-            img_resized = cv2.resize(img, target_size, interpolation=cv2.INTER_LINEAR)
-            mask_resized = cv2.resize(mask, target_size, interpolation=cv2.INTER_NEAREST)
 
             # Effectuer l'inpainting
-            res_resized = model(img_resized, mask_resized, get_config(HDStrategy.CROP))
-
-            # Redimensionner l'image résultante à la taille originale
-            res = cv2.resize(res_resized, (original_size[1], original_size[0]), interpolation=cv2.INTER_LINEAR)
+            res = model(img, mask, get_config(HDStrategy.RESIZE))  # Utiliser HDStrategy.RESIZE ou HDStrategy.ORIGINAL selon vos besoins
 
             # Convertir l'image résultante en base64
             _, buffer = cv2.imencode('.png', res)
@@ -67,8 +56,6 @@ def lamaCleaner(request):
             }
             return JsonResponse(response, safe=False)
 
-
-
 def url_to_image(url, gray=False):
     try:
         response = requests.get(url)
@@ -82,15 +69,14 @@ def url_to_image(url, gray=False):
         print(f"Error downloading image from {url}: {e}")
         return None
 
-
 def get_config(strategy, **kwargs):
     data = dict(
         ldm_steps=10,
         ldm_sampler=LDMSampler.ddim,
         hd_strategy=strategy,
         hd_strategy_crop_margin=32,
-        hd_strategy_crop_trigger_size=512,  # Essayer une valeur plus grande
-        hd_strategy_resize_limit=2048,  # Augmenter la limite de redimensionnement
+        hd_strategy_crop_trigger_size=1024,  # Ajuster la taille de déclenchement du recadrage
+        hd_strategy_resize_limit=4096,  # Augmenter la limite de redimensionnement
     )
     data.update(**kwargs)
     return Config(**data)
