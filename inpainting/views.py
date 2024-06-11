@@ -55,17 +55,19 @@ def lamaCleaner(request):
                 )
                 res = model(img, mask, config)
                 # Convert back to RGB before saving as JPEG (fixes color issue)
-                res = cv2.cvtColor(res, cv2.COLOR_BGR2RGB) 
+                res = cv2.cvtColor(res, cv2.COLOR_BGR2RGB)
                 
                 # Compression JPEG
-                _, image_buffer = cv2.imencode('.jpg', res, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-                image_base64 = base64.b64encode(image_buffer).decode('utf-8')
-                
+                with BytesIO() as image_buffer:
+                    Image.fromarray(res).save(image_buffer, format='JPEG', quality=85)
+                    image_base64 = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+
                 response = {
                     'status': 200,
                     'message': "success",
                     'image_base64': f"data:image/jpeg;base64,{image_base64}"
                 }
+        
                 
             except MemoryError:
                 response = {
