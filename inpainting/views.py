@@ -48,7 +48,7 @@ def lamaCleaner(request):
 
                 # Adjusted Configuration for Large Images
                 config = get_config(
-                    HDStrategy.RESIZE, 
+                    HDStrategy.CROP, 
                     hd_strategy_resize_limit=max_size  # Set resize limit if needed
                 )
                 res = model(img, mask, config)
