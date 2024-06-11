@@ -1,5 +1,8 @@
+from django.shortcuts import render
 from django.http import JsonResponse
+from django.conf import settings
 from rest_framework.decorators import api_view
+
 from pathlib import Path
 import cv2
 import requests
@@ -10,6 +13,7 @@ from PIL import Image
 
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
+
 
 @api_view(['POST'])
 def lamaCleaner(request):
@@ -24,7 +28,7 @@ def lamaCleaner(request):
 
             model = ModelManager(name="lama", device="cpu")
 
-            # Télécharger et lire les images depuis les URL fournies
+            # Download and read images
             img = url_to_image(input_image_url)
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
@@ -32,26 +36,38 @@ def lamaCleaner(request):
             mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
+            
+            try:
+                # Calculate Scaling Factor (if needed)
+                max_size = getattr(settings, 'LAMA_CLEANER_MAX_SIZE', 1024)
+                scale_factor = min(1.0, max_size / max(img.shape[0], img.shape[1]))
 
-            # Effectuer l'inpainting
-            res = model(img, mask, get_config(HDStrategy.RESIZE))
+                if scale_factor < 1.0:
+                    img = cv2.resize(img, (0, 0), fx=scale_factor, fy=scale_factor)
+                    mask = cv2.resize(mask, (0, 0), fx=scale_factor, fy=scale_factor)
 
-            # Enregistrer l'image résultante localement
-            current_dir = Path(__file__).parent.absolute().resolve()
-            save_dir = current_dir / 'inpaintingresult'
-            save_dir.mkdir(exist_ok=True, parents=True)
-            imagename = f"inpaint_{userid}.png"
-            cv2.imwrite(str(save_dir / imagename), res)
+                # Adjusted Configuration for Large Images
+                config = get_config(
+                    HDStrategy.RESIZE, 
+                    hd_strategy_resize_limit=max_size  # Set resize limit if needed
+                )
+                res = model(img, mask, config)
 
-            # Convertir l'image résultante en base64
-            with open(save_dir / imagename, "rb") as image_file:
-                image_data = base64.b64encode(image_file.read()).decode('utf-8')
+                # Optimized Image Conversion
+                with BytesIO() as image_buffer:
+                    Image.fromarray(res).save(image_buffer, format='PNG')
+                    image_base64 = base64.b64encode(image_buffer.getvalue()).decode()
 
-            response = {
-                'status': 200,
-                'message': "success",
-                'image_base64': "data:image/png;base64," + image_data
-            }
+                response = {
+                    'status': 200,
+                    'message': "success",
+                    'image_base64': "data:image/png;base64," + image_base64
+                }
+            except MemoryError:
+                response = {
+                    'status': 500,
+                    'message': "Image too large to process. Please try a smaller image or reduce image resolution."
+                }
 
             return JsonResponse(response, safe=False)
 
@@ -61,6 +77,7 @@ def lamaCleaner(request):
                 'message': str(e)
             }
             return JsonResponse(response, safe=False)
+
 
 def url_to_image(url, gray=False):
     """
