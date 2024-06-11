@@ -22,7 +22,10 @@ def lamaCleaner(request):
             if not input_image_url or not mask_image_url or not userid:
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
-            model = ModelManager(name="lama", device="cpu")
+            model = ModelManager(name="lama", device="cpu", dtype="float32")
+            
+            print(f"Original image size: {img.shape}")
+            print(f"Mask image size: {mask.shape}")
 
             img = url_to_image(input_image_url)
             if img is None:
