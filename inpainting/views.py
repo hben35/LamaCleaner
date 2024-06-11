@@ -1,8 +1,17 @@
+from django.shortcuts import render
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
+
+from pathlib import Path
 import cv2
+import requests
+import numpy as np
+import base64
+from io import BytesIO
+from PIL import Image
+
 from lama_cleaner.model_manager import ModelManager
-from lama_cleaner.schema import Config, HDStrategy, LDMSampler
+from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 
 @api_view(['POST'])
 def lamaCleaner(request):
