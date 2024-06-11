@@ -2,11 +2,10 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from pathlib import Path
 from io import BytesIO
-from PIL import Image
 import requests
 import numpy as np
-import cv2
 import base64
+from PIL import Image
 
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
@@ -28,7 +27,7 @@ def lamaCleaner(request):
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or decode input image'}, safe=False)
 
-            mask = url_to_image(mask_image_url, gray=True)
+            mask = url_to_image(mask_image_url)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or decode mask image'}, safe=False)
 
@@ -55,17 +54,14 @@ def lamaCleaner(request):
             }
             return JsonResponse(response, safe=False)
 
-def url_to_image(url, gray=False):
+def url_to_image(url):
     """
-    Télécharge une image depuis une URL et la convertit en un format OpenCV.
+    Télécharge une image depuis une URL et la convertit en un format Pillow.
     """
     try:
         response = requests.get(url)
         response.raise_for_status()
-        image_array = np.asarray(bytearray(response.content), dtype="uint8")
-        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
-        if image is not None and not gray:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = Image.open(BytesIO(response.content))
         return image
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
@@ -75,22 +71,19 @@ def resize_to_same_dimension(img, mask):
     """
     Redimensionne l'image et le masque pour avoir les mêmes dimensions.
     """
-    min_height = min(img.shape[0], mask.shape[0])
-    min_width = min(img.shape[1], mask.shape[1])
-    img = cv2.resize(img, (min_width, min_height))
-    mask = cv2.resize(mask, (min_width, min_height))
+    min_height = min(img.height, mask.height)
+    min_width = min(img.width, mask.width)
+    img = img.resize((min_width, min_height))
+    mask = mask.resize((min_width, min_height))
     return img, mask
-
 
 def image_to_base64(image):
     """
-    Convertit une image numpy en format base64.
+    Convertit une image Pillow en format base64.
     """
-    pil_image = Image.fromarray(image)
     buffered = BytesIO()
-    pil_image.save(buffered, format="PNG")
+    image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
-
 
 def get_config(strategy, **kwargs):
     data = dict(
