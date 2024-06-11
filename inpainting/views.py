@@ -56,23 +56,15 @@ def lamaCleaner(request):
                 res = model(img, mask, config)
                 # Convert back to RGB before saving as JPEG (fixes color issue)
                 res = cv2.cvtColor(res, cv2.COLOR_BGR2RGB) 
-                # Compression JPEG
-                with BytesIO() as image_buffer:
-                    Image.fromarray(res).save(image_buffer, format='JPEG', quality=85)
-                    image_data = image_buffer.getvalue()
-
-                # Enregistrer l'image temporairement
-                filename = f"temp_image_{userid}.jpg"
-                filepath = default_storage.save(filename, ContentFile(image_data))
                 
-                # Renvoyer l'URL de l'image
-                image_url = default_storage.url(filepath)
-                full_image_url = request.build_absolute_uri(image_url) 
+                # Compression JPEG
+                _, image_buffer = cv2.imencode('.jpg', res, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+                image_base64 = base64.b64encode(image_buffer).decode('utf-8')
                 
                 response = {
                     'status': 200,
                     'message': "success",
-                    'image_url': full_image_url  # Use the full URL
+                    'image_base64': f"data:image/jpeg;base64,{image_base64}"
                 }
                 
             except MemoryError:
@@ -89,8 +81,7 @@ def lamaCleaner(request):
                 'message': str(e)
             }
             return JsonResponse(response, safe=False)
-        # ... after sending the response ...
-        default_storage.delete(filepath)  # Delete the temporary file
+
 
 def url_to_image(url, gray=False):
     try:
