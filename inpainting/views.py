@@ -1,11 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from rest_framework.decorators import api_view
-
 import cv2
-import requests
-import numpy as np
 import base64
+from io import BytesIO
+from lama_cleaner.model_manager import ModelManager
+from lama_cleaner.schema import Config, HDStrategy, LDMSampler
 
 @api_view(['POST'])
 def lamaCleaner(request):
@@ -18,19 +17,16 @@ def lamaCleaner(request):
             if not input_image_url or not mask_image_url or not userid:
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
-            img = url_to_image(input_image_url)
-            if img is None:
-                return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
+            model = ModelManager(name="lama", device="cpu")
+            
+            img = cv2.imread(input_image_url)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            mask = cv2.imread(mask_image_url, cv2.IMREAD_GRAYSCALE)
 
-            mask = url_to_image(mask_image_url, gray=True)
-            if mask is None:
-                return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
+            res = model(img, mask, get_config(HDStrategy.RESIZE))
 
-            # Apply inpainting using cv2
-            inpainted_img = cv2.inpaint(img, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
-
-            # Convert the inpainted image to base64
-            _, buffer = cv2.imencode('.png', inpainted_img)
+            # Convertir l'image résultante en base64
+            _, buffer = cv2.imencode('.png', res)
             image_base64 = base64.b64encode(buffer).decode('utf-8')
 
             response = {
@@ -49,15 +45,14 @@ def lamaCleaner(request):
             return JsonResponse(response, safe=False)
 
 
-def url_to_image(url, gray=False):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        image_array = np.asarray(bytearray(response.content), dtype="uint8")
-        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
-        if image is not None and not gray:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        return image
-    except Exception as e:
-        print(f"Error downloading image from {url}: {e}")
-        return None
+def get_config(strategy, **kwargs):
+    data = dict(
+        ldm_steps=1,
+        ldm_sampler=LDMSampler.plms,
+        hd_strategy=strategy,
+        hd_strategy_crop_margin=32,
+        hd_strategy_crop_trigger_size=200,
+        hd_strategy_resize_limit=200,
+    )
+    data.update(**kwargs)
+    return Config(**data)
