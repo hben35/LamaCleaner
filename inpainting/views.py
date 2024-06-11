@@ -24,8 +24,6 @@ def lamaCleaner(request):
 
             model = ModelManager(name="lama", device="cpu", dtype="float32")
             
-            print(f"Original image size: {img.shape}")
-            print(f"Mask image size: {mask.shape}")
 
             img = url_to_image(input_image_url)
             if img is None:
@@ -34,7 +32,10 @@ def lamaCleaner(request):
             mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
-
+            
+            print(f"Original image size: {img.shape}")
+            print(f"Mask image size: {mask.shape}")
+            
             # Redimensionnement manuel avant traitement
             original_size = img.shape[:2]
             target_size = (512, 512)  # Taille à adapter en fonction de vos tests
