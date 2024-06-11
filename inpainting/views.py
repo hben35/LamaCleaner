@@ -84,15 +84,13 @@ def resize_to_same_dimension(img, mask):
 
 def image_to_base64(image):
     """
-    Convertit une image PIL en base64.
+    Convertit une image numpy en format base64.
     """
-    try:
-        buffered = BytesIO()
-        image.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
-    except Exception as e:
-        print(f"Error converting image to base64: {e}")
-        return None
+    pil_image = Image.fromarray(image)
+    buffered = BytesIO()
+    pil_image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
 
 def get_config(strategy, **kwargs):
     data = dict(
