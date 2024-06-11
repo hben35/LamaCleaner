@@ -80,20 +80,27 @@ def lamaCleaner(request):
 
 
 def url_to_image(url, gray=False):
-    """
-    Télécharge une image depuis une URL et la convertit en un format OpenCV.
-    """
     try:
-        response = requests.get(url)
-        response.raise_for_status()
-        image_array = np.asarray(bytearray(response.content), dtype="uint8")
-        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
-        if image is not None and not gray:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        return image
+        with requests.get(url, stream=True) as response:
+            response.raise_for_status()
+
+            # Utiliser PIL pour charger l'image
+            img = Image.open(response.raw)
+
+            if gray:
+                img = img.convert('L')  # Convertir en niveaux de gris si nécessaire
+            else:
+                img = img.convert('RGB')  # S'assurer que l'image est en RGB
+
+            # Convertir en tableau numpy pour OpenCV
+            img = np.array(img)
+
+            return img
+
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
         return None
+
 
 
 def get_config(strategy, **kwargs):
