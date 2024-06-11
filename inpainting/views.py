@@ -1,10 +1,6 @@
-from django.shortcuts import render
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
-
 import cv2
-import base64
-from io import BytesIO
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler
 
@@ -20,14 +16,17 @@ def lamaCleaner(request):
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
             model = ModelManager(name="lama", device="cpu")
-            
-            img = cv2.imread(input_image_url)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            mask = cv2.imread(mask_image_url, cv2.IMREAD_GRAYSCALE)
+
+            img = url_to_image(input_image_url)
+            if img is None:
+                return JsonResponse({'status': 400, 'message': 'Failed to download or decode input image'}, safe=False)
+
+            mask = url_to_image(mask_image_url)
+            if mask is None:
+                return JsonResponse({'status': 400, 'message': 'Failed to download or decode mask image'}, safe=False)
 
             res = model(img, mask, get_config(HDStrategy.RESIZE))
 
-            # Convertir l'image résultante en base64
             _, buffer = cv2.imencode('.png', res)
             image_base64 = base64.b64encode(buffer).decode('utf-8')
 
@@ -46,6 +45,16 @@ def lamaCleaner(request):
             }
             return JsonResponse(response, safe=False)
 
+def url_to_image(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        image_array = np.asarray(bytearray(response.content), dtype=np.uint8)
+        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+        return image
+    except Exception as e:
+        print(f"Error downloading or decoding image from {url}: {e}")
+        return None
 
 def get_config(strategy, **kwargs):
     data = dict(
