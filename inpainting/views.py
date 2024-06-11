@@ -89,7 +89,8 @@ def lamaCleaner(request):
                 'message': str(e)
             }
             return JsonResponse(response, safe=False)
-
+        # ... after sending the response ...
+        default_storage.delete(filepath)  # Delete the temporary file
 
 def url_to_image(url, gray=False):
     try:
