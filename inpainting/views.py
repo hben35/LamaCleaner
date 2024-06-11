@@ -36,6 +36,10 @@ def lamaCleaner(request):
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
+            # Assurez-vous que l'image et le masque ont les mêmes dimensions
+            if img.shape[:2] != mask.shape[:2]:
+                return JsonResponse({'status': 400, 'message': 'Input image and mask must have the same dimensions'}, safe=False)
+
             # Effectuer l'inpainting
             res = model(img, mask, get_config(HDStrategy.CROP))
 
@@ -78,12 +82,12 @@ def url_to_image(url, gray=False):
 
 def get_config(strategy, **kwargs):
     data = dict(
-        ldm_steps=10,
-        ldm_sampler=LDMSampler.ddim,
-        hd_strategy=strategy,
-        hd_strategy_crop_margin=32,
-        hd_strategy_crop_trigger_size=512,
-        hd_strategy_resize_limit=1024,
+        ldm_steps=50,  # Increase steps to ensure full rendering
+        ldm_sampler=LDMSampler.ddim,  # Use DDIM for speed on CPU
+        hd_strategy=strategy,  # CROP strategy for large images
+        hd_strategy_crop_margin=32,  # Margin around the cropped area
+        hd_strategy_crop_trigger_size=512,  # Size to trigger cropping
+        hd_strategy_resize_limit=1024,  # Resize limit
     )
     data.update(**kwargs)
     return Config(**data)
