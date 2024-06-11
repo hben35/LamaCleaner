@@ -101,9 +101,9 @@ def get_config(strategy, **kwargs):
         ldm_steps=10,
         ldm_sampler=LDMSampler.ddim,
         hd_strategy=strategy,
-        hd_strategy_crop_margin=32,
+        hd_strategy_crop_margin=16,
         hd_strategy_crop_trigger_size=512,
-        hd_strategy_resize_limit=1024,
+        hd_strategy_resize_limit=2048,
     )
     data.update(**kwargs)
     return Config(**data)
