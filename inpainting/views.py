@@ -101,12 +101,20 @@ def url_to_image(url, gray=False):
             if gray:
                 img = img.convert('L')  # Convertir en niveaux de gris si nécessaire
             else:
-                img = img.convert('RGB')  # S'assurer que l'image est en RGB
+                # Convert to RGB mode if it's not already in RGB
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
 
-            # Convertir en tableau numpy pour OpenCV
+            # Convertir en tableau numpy pour OpenCV (already in RGB)
             img = np.array(img)
 
             return img
+
+    except Exception as e:
+        print(f"Error downloading image from {url}: {e}")
+        return None
+
+
 
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
