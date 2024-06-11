@@ -68,12 +68,12 @@ def url_to_image(url):
 
 def get_config(strategy, **kwargs):
     data = dict(
-        ldm_steps=1,
-        ldm_sampler=LDMSampler.plms,
+        ldm_steps=10,
+        ldm_sampler=LDMSampler.ddim,
         hd_strategy=strategy,
         hd_strategy_crop_margin=32,
-        hd_strategy_crop_trigger_size=200,
-        hd_strategy_resize_limit=200,
+        hd_strategy_crop_trigger_size=512,
+        hd_strategy_resize_limit=1024,
     )
     data.update(**kwargs)
     return Config(**data)
