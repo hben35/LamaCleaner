@@ -1,7 +1,5 @@
-from django.shortcuts import render
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
-
 from pathlib import Path
 import cv2
 import requests
@@ -12,7 +10,6 @@ from PIL import Image
 
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
-
 
 @api_view(['POST'])
 def lamaCleaner(request):
@@ -37,16 +34,23 @@ def lamaCleaner(request):
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
             # Effectuer l'inpainting
-            res = model(img, mask, get_config(HDStrategy.CROP))
+            res = model(img, mask, get_config(HDStrategy.RESIZE))
+
+            # Enregistrer l'image résultante localement
+            current_dir = Path(__file__).parent.absolute().resolve()
+            save_dir = current_dir / 'inpaintingresult'
+            save_dir.mkdir(exist_ok=True, parents=True)
+            imagename = f"inpaint_{userid}.png"
+            cv2.imwrite(str(save_dir / imagename), res)
 
             # Convertir l'image résultante en base64
-            _, buffer = cv2.imencode('.png', res)
-            image_base64 = base64.b64encode(buffer).decode('utf-8')
+            with open(save_dir / imagename, "rb") as image_file:
+                image_data = base64.b64encode(image_file.read()).decode('utf-8')
 
             response = {
                 'status': 200,
                 'message': "success",
-                'image_base64': "data:image/png;base64," + image_base64
+                'image_base64': "data:image/png;base64," + image_data
             }
 
             return JsonResponse(response, safe=False)
@@ -57,7 +61,6 @@ def lamaCleaner(request):
                 'message': str(e)
             }
             return JsonResponse(response, safe=False)
-
 
 def url_to_image(url, gray=False):
     """
