@@ -7,10 +7,6 @@ import requests
 import numpy as np
 import base64
 
-from lama_cleaner.model_manager import ModelManager
-from lama_cleaner.schema import Config, HDStrategy, LDMSampler
-
-
 @api_view(['POST'])
 def lamaCleaner(request):
     if request.method == "POST":
@@ -22,8 +18,6 @@ def lamaCleaner(request):
             if not input_image_url or not mask_image_url or not userid:
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
-            model = ModelManager(name="lama", device="cpu", dtype="float32")
-
             img = url_to_image(input_image_url)
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
@@ -31,15 +25,12 @@ def lamaCleaner(request):
             mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
-            
-            print(f"Original image size: {img.shape}")
-            print(f"Mask image size: {mask.shape}")
 
-            # Utiliser la stratégie d'inpainting Crop pour réduire l'utilisation de la mémoire et la vitesse
-            res = model(img, mask, get_config(HDStrategy.CROP))
+            # Apply inpainting using cv2
+            inpainted_img = cv2.inpaint(img, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
 
-            # Convertir l'image résultante en base64
-            _, buffer = cv2.imencode('.png', res)
+            # Convert the inpainted image to base64
+            _, buffer = cv2.imencode('.png', inpainted_img)
             image_base64 = base64.b64encode(buffer).decode('utf-8')
 
             response = {
@@ -70,16 +61,3 @@ def url_to_image(url, gray=False):
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
         return None
-
-
-def get_config(strategy, **kwargs):
-    data = dict(
-        ldm_steps=10,
-        ldm_sampler=LDMSampler.ddim,
-        hd_strategy=strategy,
-        hd_strategy_crop_margin=32,
-        hd_strategy_crop_trigger_size=512,  # Essayer une valeur plus grande si nécessaire
-        hd_strategy_resize_limit=2048,  # Augmenter la limite de redimensionnement si nécessaire
-    )
-    data.update(**kwargs)
-    return Config(**data)
