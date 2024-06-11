@@ -54,7 +54,8 @@ def lamaCleaner(request):
                     hd_strategy_resize_limit=max_size  # Set resize limit if needed
                 )
                 res = model(img, mask, config)
-
+                # Convert back to RGB before saving as JPEG (fixes color issue)
+                res = cv2.cvtColor(res, cv2.COLOR_BGR2RGB) 
                 # Compression JPEG
                 with BytesIO() as image_buffer:
                     Image.fromarray(res).save(image_buffer, format='JPEG', quality=85)
