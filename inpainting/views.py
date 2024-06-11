@@ -13,6 +13,7 @@ from PIL import Image
 from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 
+
 @api_view(['POST'])
 def lamaCleaner(request):
     if request.method == "POST":
@@ -26,16 +27,19 @@ def lamaCleaner(request):
 
             model = ModelManager(name="lama", device="cpu")
 
+            # Télécharger et lire les images depuis les URL fournies
             img = url_to_image(input_image_url)
             if img is None:
-                return JsonResponse({'status': 400, 'message': 'Failed to download or decode input image'}, safe=False)
+                return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
 
-            mask = url_to_image(mask_image_url)
+            mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
-                return JsonResponse({'status': 400, 'message': 'Failed to download or decode mask image'}, safe=False)
+                return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
-            res = model(img, mask, get_config(HDStrategy.RESIZE))
+            # Effectuer l'inpainting
+            res = model(img, mask, get_config(HDStrategy.CROP))
 
+            # Convertir l'image résultante en base64
             _, buffer = cv2.imencode('.png', res)
             image_base64 = base64.b64encode(buffer).decode('utf-8')
 
@@ -54,19 +58,23 @@ def lamaCleaner(request):
             }
             return JsonResponse(response, safe=False)
 
-def url_to_image(url):
+
+def url_to_image(url, gray=False):
+    """
+    Télécharge une image depuis une URL et la convertit en un format OpenCV.
+    """
     try:
         response = requests.get(url)
         response.raise_for_status()
         image_array = np.asarray(bytearray(response.content), dtype="uint8")
-        image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
-        if image is not None:
+        image = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE if gray else cv2.IMREAD_COLOR)
+        if image is not None and not gray:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image
     except Exception as e:
-        print(f"Error downloading or decoding image from {url}: {e}")
+        print(f"Error downloading image from {url}: {e}")
         return None
-        
+
 
 def get_config(strategy, **kwargs):
     data = dict(
