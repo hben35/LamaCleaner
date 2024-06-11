@@ -37,7 +37,7 @@ def lamaCleaner(request):
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
             # Effectuer l'inpainting
-            res = model(img, mask, get_config(HDStrategy.ORIGINAL))
+            res = model(img, mask, get_config(HDStrategy.CROP))
 
             # Convertir l'image résultante en base64
             _, buffer = cv2.imencode('.png', res)
