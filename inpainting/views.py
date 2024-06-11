@@ -2,12 +2,12 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from pathlib import Path
 from io import BytesIO
+from PIL import Image
 import requests
 import numpy as np
+import cv2
 import base64
-from PIL import Image
 
-from lama_cleaner.model_manager import ModelManager
 from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
 
 @api_view(['POST'])
@@ -21,8 +21,6 @@ def lamaCleaner(request):
             if not input_image_url or not mask_image_url or not userid:
                 return JsonResponse({'status': 400, 'message': 'Missing required fields'}, safe=False)
 
-            model = ModelManager(name="lama", device="cpu")
-
             img = url_to_image(input_image_url)
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or decode input image'}, safe=False)
@@ -34,7 +32,8 @@ def lamaCleaner(request):
             # Assurer que l'image et le masque ont les mêmes dimensions
             img, mask = resize_to_same_dimension(img, mask)
 
-            res = model(img, mask, get_config(HDStrategy.RESIZE))
+            # Utiliser le modèle cv2 pour l'inpainting
+            res = cv2_inpainting(img, mask)
 
             # Convertir l'image résultante en base64
             image_base64 = image_to_base64(res)
@@ -56,12 +55,12 @@ def lamaCleaner(request):
 
 def url_to_image(url):
     """
-    Télécharge une image depuis une URL et la convertit en un format Pillow.
+    Télécharge une image depuis une URL et la convertit en un format numpy.
     """
     try:
         response = requests.get(url)
         response.raise_for_status()
-        image = Image.open(BytesIO(response.content))
+        image = np.array(Image.open(BytesIO(response.content)))
         return image
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
@@ -71,28 +70,24 @@ def resize_to_same_dimension(img, mask):
     """
     Redimensionne l'image et le masque pour avoir les mêmes dimensions.
     """
-    min_height = min(img.height, mask.height)
-    min_width = min(img.width, mask.width)
-    img = img.resize((min_width, min_height))
-    mask = mask.resize((min_width, min_height))
+    min_height = min(img.shape[0], mask.shape[0])
+    min_width = min(img.shape[1], mask.shape[1])
+    img = cv2.resize(img, (min_width, min_height))
+    mask = cv2.resize(mask, (min_width, min_height))
     return img, mask
+
+def cv2_inpainting(img, mask):
+    """
+    Utilise le modèle cv2 pour effectuer l'inpainting.
+    """
+    res = cv2.inpaint(img, mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
+    return res
 
 def image_to_base64(image):
     """
-    Convertit une image Pillow en format base64.
+    Convertit une image numpy en format base64.
     """
+    pil_image = Image.fromarray(image)
     buffered = BytesIO()
-    image.save(buffered, format="PNG")
+    pil_image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-def get_config(strategy, **kwargs):
-    data = dict(
-        ldm_steps=1,
-        ldm_sampler=LDMSampler.plms,
-        hd_strategy=strategy,
-        hd_strategy_crop_margin=32,
-        hd_strategy_crop_trigger_size=200,
-        hd_strategy_resize_limit=200,
-    )
-    data.update(**kwargs)
-    return Config(**data)
