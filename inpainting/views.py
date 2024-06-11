@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from django.conf import settings
 from django.core.files.storage import default_storage
 from rest_framework.decorators import api_view
+from django.core.files.base import ContentFile  # Import ContentFile
 
 from pathlib import Path
 import cv2
