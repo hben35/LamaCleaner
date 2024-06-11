@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.conf import settings
+from django.core.files.storage import default_storage
 from rest_framework.decorators import api_view
 
 from pathlib import Path
@@ -36,7 +37,7 @@ def lamaCleaner(request):
             mask = url_to_image(mask_image_url, gray=True)
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
-            
+
             try:
                 # Calculate Scaling Factor (if needed)
                 max_size = getattr(settings, 'LAMA_CLEANER_MAX_SIZE', 1024)
@@ -48,20 +49,27 @@ def lamaCleaner(request):
 
                 # Adjusted Configuration for Large Images
                 config = get_config(
-                    HDStrategy.CROP, 
+                    HDStrategy.CROP,
                     hd_strategy_resize_limit=max_size  # Set resize limit if needed
                 )
                 res = model(img, mask, config)
 
-                # Optimized Image Conversion
+                # Compression JPEG
                 with BytesIO() as image_buffer:
-                    Image.fromarray(res).save(image_buffer, format='PNG')
-                    image_base64 = base64.b64encode(image_buffer.getvalue()).decode()
+                    Image.fromarray(res).save(image_buffer, format='JPEG', quality=85)
+                    image_data = image_buffer.getvalue()
+
+                # Enregistrer l'image temporairement
+                filename = f"temp_image_{userid}.jpg"
+                filepath = default_storage.save(filename, ContentFile(image_data))
+
+                # Renvoyer l'URL de l'image
+                image_url = default_storage.url(filepath)
 
                 response = {
                     'status': 200,
                     'message': "success",
-                    'image_base64': "data:image/png;base64," + image_base64
+                    'image_url': image_url
                 }
             except MemoryError:
                 response = {
