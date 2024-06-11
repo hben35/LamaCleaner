@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['clean.cap.dev.processflow.fr']
 
-
+LAMA_CLEANER_MAX_SIZE = 2048
 
 # Application definition
 
