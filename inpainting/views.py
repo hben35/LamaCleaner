@@ -2,16 +2,13 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from rest_framework.decorators import api_view
 
-from pathlib import Path
 import cv2
 import requests
 import numpy as np
 import base64
-from io import BytesIO
-from PIL import Image
 
 from lama_cleaner.model_manager import ModelManager
-from lama_cleaner.schema import Config, HDStrategy, LDMSampler, SDSampler
+from lama_cleaner.schema import Config, HDStrategy, LDMSampler
 
 
 @api_view(['POST'])
@@ -27,7 +24,6 @@ def lamaCleaner(request):
 
             model = ModelManager(name="lama", device="cpu")
 
-            # Télécharger et lire les images depuis les URL fournies
             img = url_to_image(input_image_url)
             if img is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read input image'}, safe=False)
@@ -36,10 +32,8 @@ def lamaCleaner(request):
             if mask is None:
                 return JsonResponse({'status': 400, 'message': 'Failed to download or read mask image'}, safe=False)
 
-            # Effectuer l'inpainting
-            res = model(img, mask, get_config(HDStrategy.RESIZE))
+            res = model(img, mask, get_config(HDStrategy.CROP))
 
-            # Convertir l'image résultante en base64
             _, buffer = cv2.imencode('.png', res)
             image_base64 = base64.b64encode(buffer).decode('utf-8')
 
@@ -60,9 +54,6 @@ def lamaCleaner(request):
 
 
 def url_to_image(url, gray=False):
-    """
-    Télécharge une image depuis une URL et la convertit en un format OpenCV.
-    """
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -78,12 +69,12 @@ def url_to_image(url, gray=False):
 
 def get_config(strategy, **kwargs):
     data = dict(
-        ldm_steps=10,
+        ldm_steps=5,  # Réduire le nombre d'étapes pour améliorer la vitesse
         ldm_sampler=LDMSampler.ddim,
         hd_strategy=strategy,
         hd_strategy_crop_margin=32,
-        hd_strategy_crop_trigger_size=512,
-        hd_strategy_resize_limit=2048,  # Augmentez cette valeur si nécessaire
+        hd_strategy_crop_trigger_size=1024,  # Ajuster selon vos besoins
+        hd_strategy_resize_limit=1080,  # Limite de redimensionnement ajustée
     )
     data.update(**kwargs)
     return Config(**data)
