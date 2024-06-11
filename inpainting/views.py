@@ -53,7 +53,7 @@ def lamaCleaner(request):
             }
             return JsonResponse(response, safe=False)
 
-def url_to_image(url):
+def url_to_image(url, gray=False):
     """
     Télécharge une image depuis une URL et la convertit en un format numpy.
     """
@@ -61,10 +61,16 @@ def url_to_image(url):
         response = requests.get(url)
         response.raise_for_status()
         image = np.array(Image.open(BytesIO(response.content)))
+
+        # Convertir en niveaux de gris si demandé
+        if gray and len(image.shape) == 3:  # Assurer que l'image est en couleur
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
         return image
     except Exception as e:
         print(f"Error downloading image from {url}: {e}")
         return None
+
 
 def resize_to_same_dimension(img, mask):
     """
