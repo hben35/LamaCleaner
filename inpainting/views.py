@@ -119,12 +119,12 @@ def url_to_image(url, gray=False):
 
 def get_config(strategy, **kwargs):
     data = dict(
-        ldm_steps=20,       # Increase steps for better quality (adjust based on your needs)
+        ldm_steps=10,       # Increase steps for better quality (adjust based on your needs)
         ldm_sampler=LDMSampler.ddim,  # DDIM is often faster than PLMS on CPU
         hd_strategy=strategy,
         hd_strategy_crop_margin=16,  # Keep a reasonable crop margin
-        hd_strategy_crop_trigger_size=512,  # Adjust if your images are consistently smaller
-        hd_strategy_resize_limit=1024,   # Reduce resize limit to save memory
+        hd_strategy_crop_trigger_size=200,  # Adjust if your images are consistently smaller
+        hd_strategy_resize_limit=200,   # Reduce resize limit to save memory
     )
     data.update(**kwargs)
     return Config(**data)
